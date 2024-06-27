@@ -1,66 +1,205 @@
 import streamlit as st
 import anthropic
 import os
-from dotenv import load_dotenv
 import PyPDF2
 import io
-from pyhwp import hwp5odt
-from pyhwp.hwp5 import xmlmodel
-from lxml import etree
-import olefile
 import zlib
+import struct
+import re
+import pandas as pd
+import olefile
+import warnings
+import zipfile
+import xml.etree.ElementTree as ET
 
-# .env 파일에서 환경 변수 로드
-load_dotenv()
+# 시스템 환경 변수에서 API 키 가져오기
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
-# Anthropic API 키 설정
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+# API 키가 설정되어 있는지 확인
+if not ANTHROPIC_API_KEY:
+    st.error("ANTHROPIC_API_KEY 환경 변수가 설정되지 않았습니다.")
+    st.stop()
 
 # Anthropic 클라이언트 초기화
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
+class HwpTextExtractor:
+    def __init__(self):
+        self.stopwords = []
+
+    def get_hwp_text(self, filename, target_page):
+        with olefile.OleFileIO(filename) as f:
+            dirs = f.listdir()
+
+            if ["FileHeader"] not in dirs or ["\x05HwpSummaryInformation"] not in dirs:
+                raise Exception("Not Valid HWP.")
+
+            header_data = f.openstream("FileHeader").read()
+            is_compressed = (header_data[36] & 1) == 1
+
+            sections = [d for d in dirs if d[0] == "BodyText"]
+            sections.sort(key=lambda x: int(x[1][len("Section"):]))
+            
+            text = ""
+            for section in sections:
+                section_data = f.openstream(section).read()
+                if is_compressed:
+                    unpacked_data = zlib.decompress(section_data, -15)
+                else:
+                    unpacked_data = section_data
+
+                i = 0
+                size = len(unpacked_data)
+                page_count = 0
+                while i < size:
+                    header = struct.unpack_from("<I", unpacked_data, i)[0]
+                    rec_type = header & 0x3ff
+                    rec_len = (header >> 20) & 0xfff
+
+                    if rec_type == 67:
+                        rec_data = unpacked_data[i+4:i+4+rec_len]
+                        try:
+                            text += rec_data.decode('utf-16')
+                        except UnicodeDecodeError:
+                            print(f"Failed to decode. Skipping...")
+                        text += "\n"
+
+                        if b'\x14' in rec_data:
+                            page_count += 1
+                            if page_count >= target_page:
+                                break
+
+                    i += 4 + rec_len
+
+                text += "\n"
+
+            return text
+
+    def extract_text_from_hwp(self, hwp_file, target_page):
+        extracted_text = self.get_hwp_text(hwp_file, target_page)
+        processed_text = self.process_text(extracted_text)
+        processed_text = self.remove_special_chars(processed_text)
+        return processed_text
+
+    def process_text(self, text):
+        processed_text = text.replace('\x02', ' ')
+        processed_text = processed_text.replace('\x03', ' ')
+        processed_text = processed_text.replace('\x0b', ' ')
+        processed_text = processed_text.replace('\x0c', ' ')
+        processed_text = re.sub(r'\s+', ' ', processed_text)
+        return processed_text.strip()
+
+    def remove_special_chars(self, text):
+        special_chars = r'[-=+,#/\?:^$.@*\"※~&%ㆍ!』\\\\|\\(\\)\\[\\]\\<\\>`\'…》]'
+        text = re.sub(special_chars, '', text)
+        return text
+    
+class HwpxTextExtractor:
+    def __init__(self):
+        self.stopwords = []
+
+    def convert_hwpx_to_txt(self, hwpx_file_path):
+        base, _ = os.path.splitext(hwpx_file_path)
+        zip_file_path = base + ".zip"
+        os.rename(hwpx_file_path, zip_file_path)
+        all_texts = []
+        
+        with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+            all_files = zip_ref.namelist()
+            section_files = [f for f in all_files if f.startswith('Contents/section') and f.endswith('.xml')]
+            
+            for section_file in section_files:
+                zip_ref.extract(section_file, '.')
+                section_text = self.extract_text_from_xml(section_file)
+                all_texts.extend(section_text)
+                os.remove(section_file)
+        
+        os.remove(zip_file_path)
+        combined_text = '\n'.join(all_texts)
+        return combined_text
+
+    def extract_text_from_xml(self, xml_file_path):
+        texts = []
+        try:
+            tree = ET.parse(xml_file_path)
+            root = tree.getroot()
+            for elem in root.iter('{http://www.hancom.co.kr/hwpml/2011/paragraph}t'):
+                if elem.text:
+                    texts.append(elem.text.strip())
+        except ET.ParseError as e:
+            return [f"XML 파싱 에러: {e}"]
+        return texts
+
+    def extract_text_from_hwpx(self, hwpx_file_path):
+        extracted_text = self.convert_hwpx_to_txt(hwpx_file_path)
+        processed_text = self.remove_special_chars(extracted_text)
+        return processed_text
+
+    def remove_special_chars(self, text):
+        special_chars = r'[-=+,#/\?:^$.@*\"※~&%ㆍ!』\\\\|\\(\\)\\[\\]\\<\\>`\'…》]'
+        text = re.sub(special_chars, '', text)
+        return text
+ 
+
+def read_txt(file):
+    try:
+        return file.getvalue().decode("utf-8")
+    except Exception as e:
+        st.error(f"TXT 파일 읽기 오류: {str(e)}")
+        return None
+
 def read_pdf(file):
-    pdf_reader = PyPDF2.PdfReader(file)
-    text = ""
-    for page in pdf_reader.pages:
-        text += page.extract_text() + "\n"
-    return text
+    try:
+        pdf_reader = PyPDF2.PdfReader(file)
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+        return text
+    except Exception as e:
+        st.error(f"PDF 파일 읽기 오류: {str(e)}")
+        return None
 
 def read_hwp(file):
     try:
-        with hwp5odt.ODTTransform() as transform:
-            os_odt_file = transform(file)
-            with os_odt_file.open('content.xml') as f:
-                xml_content = f.read()
-                root = etree.fromstring(xml_content)
-                paragraphs = root.findall('.//{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p')
-                text = '\n'.join([p.text for p in paragraphs if p.text])
-        return text
+        hwp_extractor = HwpTextExtractor()
+        return hwp_extractor.extract_text_from_hwp(file, 15)  # 15 페이지까지 읽기
     except Exception as e:
         st.error(f"HWP 파일 읽기 오류: {str(e)}")
         return None
 
 def read_hwpx(file):
     try:
-        ole = olefile.OleFileIO(file)
-        encoded_text = ole.openstream('BodyText/Section0').read()
-        decoded_text = zlib.decompress(encoded_text, -15).decode('utf-16')
-        return decoded_text
+        hwpx_extractor = HwpxTextExtractor()
+        return hwpx_extractor.extract_text_from_hwpx(file)
     except Exception as e:
         st.error(f"HWPX 파일 읽기 오류: {str(e)}")
         return None
+    
+def remove_special_chars(text):
+    special_chars = r'[-=+,#/\?:^$.@*\"※~&%ㆍ!』\\\\|\\(\\)\\[\\]\\<\\>`\'…》]'
+    return re.sub(special_chars, '', text)
 
 def read_file(file):
-    if file.type == "application/pdf":
-        return read_pdf(file)
-    elif file.type == "text/plain":
-        return file.getvalue().decode("utf-8")
-    elif file.type == "application/x-hwp":
-        return read_hwp(file)
-    elif file.type == "application/hwp":
-        return read_hwpx(file)
-    else:
+    if file is None:
+        st.error("파일이 업로드되지 않았습니다.")
         return None
+    
+    file_extension = os.path.splitext(file.name)[1].lower()
+    
+    content = None
+    if file_extension == '.txt':
+        content = read_txt(file)
+    elif file_extension == '.pdf':
+        content = read_pdf(file)
+    elif file_extension == '.hwp':
+        content = read_hwp(file)
+    elif file_extension == '.hwpx':
+        content = read_hwpx(file)
+    else:
+        st.error(f"지원되지 않는 파일 형식입니다: {file_extension}")
+        return None
+    
+    return remove_special_chars(content) if content else None
 
 def generate_content(prompt):
     try:
@@ -79,35 +218,28 @@ def generate_content(prompt):
 def main():
     st.title("RFP 분석 및 전략 생성 도구")
 
-    # 파일 업로드
     uploaded_file = st.file_uploader("RFP 파일을 업로드하세요", type=["txt", "pdf", "hwp", "hwpx"])
 
     if uploaded_file is not None:
-        # 파일 내용 읽기
         content = read_file(uploaded_file)
-
+        
         if content is None:
-            st.error("파일을 읽을 수 없습니다. txt, pdf, hwp 또는 hwpx 파일만 지원합니다.")
+            st.error("파일 내용을 읽을 수 없습니다. 파일 형식을 확인해주세요.")
             return
 
-        # 파일 내용 미리보기
         st.subheader("파일 내용 미리보기")
         st.text_area("", content[:500] + "...", height=200)
 
-        # 분석 시작 버튼
         if st.button("분석 시작"):
             with st.spinner("분석 중..."):
-                # RFP 요약
+                # RFP 요약 (생성은 하되 표시하지 않음)
                 summary_prompt = f"""다음은 RFP의 내용입니다:
 
-                {content}
+                {content[:4000]}  # API 제한으로 인해 내용을 잘랐습니다.
 
                 위 사업의 내용을 사업명, 발주처, 사업기간, 세부 사업기간, 장소, 내용, 사업목적, 추진방향을 요약하고, 메인 과업과 주가 되는 주요 과업을 요약해주세요. 선정 방식, 방법, 일반 사항 등 사업과 직접 관련이 없는 내용은 제외해주세요."""
 
                 rfp_summary = generate_content(summary_prompt)
-                if rfp_summary:
-                    st.subheader("RFP 요약")
-                    st.write(rfp_summary)
 
                 # 커뮤니케이션 전략 생성
                 comm_prompt = f"""다음은 RFP의 요약 내용입니다:
