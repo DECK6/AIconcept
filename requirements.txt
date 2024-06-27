@@ -1,0 +1,7 @@
+streamlit
+anthropic
+python-dotenv
+PyPDF2
+pyhwp
+olefile
+lxml
