@@ -1,7 +1,6 @@
-streamlit
-anthropic
-python-dotenv
-PyPDF2
-pyhwp
-olefile
-lxml
+streamlit==1.32.2
+anthropic==0.18.1
+PyPDF2==3.0.1
+pandas==2.2.1
+olefile==0.47
+lxml==5.1.0
