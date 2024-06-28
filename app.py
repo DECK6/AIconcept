@@ -81,12 +81,22 @@ class HwpTextExtractor:
         processed_text = self.remove_special_chars(processed_text)
         return processed_text
 
-    def process_text(self, text):
+    def remove_chinese_characters(self, s: str):
+        return re.sub(r'[\u4e00-\u9fff]+', '', s)
+        
+    def remove_control_characters(self, s):
+        return "".join(ch for ch in s if unicodedata.category(ch)[0]!="C")
+
+    def process_text(self, text        # 기존 처리
         processed_text = text.replace('\x02', ' ')
         processed_text = processed_text.replace('\x03', ' ')
         processed_text = processed_text.replace('\x0b', ' ')
         processed_text = processed_text.replace('\x0c', ' ')
         processed_text = re.sub(r'\s+', ' ', processed_text)
+        
+        # 새로운 정제 과정 추가
+        processed_text = self.remove_chinese_characters(processed_text)
+        processed_text = self.remove_control_characters(processed_text)        
         return processed_text.strip()
 
     def remove_special_chars(self, text):
