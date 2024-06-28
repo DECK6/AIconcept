@@ -11,6 +11,7 @@ import olefile
 import warnings
 import zipfile
 import xml.etree.ElementTree as ET
+import unicodedata
 
 # 시스템 환경 변수에서 API 키 가져오기
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
@@ -150,11 +151,27 @@ class HwpxTextExtractor:
         special_chars = r'[-=+,#/\?:^$.@*\"※~&%ㆍ!』\\\\|\\(\\)\\[\\]\\<\\>`\'…》]'
         text = re.sub(special_chars, '', text)
         return text
- 
+
+def remove_chinese_characters(s: str):
+    return re.sub(r'[\u4e00-\u9fff]+', '', s)
+
+def remove_control_characters(s):
+    return "".join(ch for ch in s if unicodedata.category(ch)[0]!="C")
+
+def remove_special_chars(text):
+    special_chars = r'[-=+,#/\?:^$.@*\"※~&%ㆍ!』\\\\|\\(\\)\\[\\]\\<\\>`\'…》]'
+    return re.sub(special_chars, '', text)
+
+def refine_text(text):
+    text = remove_chinese_characters(text)
+    text = remove_control_characters(text)
+    text = remove_special_chars(text)
+    return text.strip()
 
 def read_txt(file):
     try:
-        return file.getvalue().decode("utf-8")
+        content = file.getvalue().decode("utf-8")
+        return refine_text(content)
     except Exception as e:
         st.error(f"TXT 파일 읽기 오류: {str(e)}")
         return None
@@ -165,7 +182,7 @@ def read_pdf(file):
         text = ""
         for page in pdf_reader.pages:
             text += page.extract_text() + "\n"
-        return text
+        return refine_text(text)
     except Exception as e:
         st.error(f"PDF 파일 읽기 오류: {str(e)}")
         return None
@@ -173,7 +190,8 @@ def read_pdf(file):
 def read_hwp(file):
     try:
         hwp_extractor = HwpTextExtractor()
-        return hwp_extractor.extract_text_from_hwp(file, 15)  # 15 페이지까지 읽기
+        content = hwp_extractor.extract_text_from_hwp(file, 15)  # 15 페이지까지 읽기
+        return refine_text(content)
     except Exception as e:
         st.error(f"HWP 파일 읽기 오류: {str(e)}")
         return None
@@ -181,14 +199,11 @@ def read_hwp(file):
 def read_hwpx(file):
     try:
         hwpx_extractor = HwpxTextExtractor()
-        return hwpx_extractor.extract_text_from_hwpx(file)
+        content = hwpx_extractor.extract_text_from_hwpx(file)
+        return refine_text(content)
     except Exception as e:
         st.error(f"HWPX 파일 읽기 오류: {str(e)}")
         return None
-    
-def remove_special_chars(text):
-    special_chars = r'[-=+,#/\?:^$.@*\"※~&%ㆍ!』\\\\|\\(\\)\\[\\]\\<\\>`\'…》]'
-    return re.sub(special_chars, '', text)
 
 def read_file(file):
     if file is None:
@@ -210,7 +225,12 @@ def read_file(file):
         st.error(f"지원되지 않는 파일 형식입니다: {file_extension}")
         return None
     
-    return remove_special_chars(content) if content else None
+    if content:
+        st.success(f"파일 읽기 성공: {len(content)} 문자")
+    else:
+        st.error("파일 내용을 읽을 수 없습니다.")
+    
+    return content
 
 def generate_content(prompt):
     try:
