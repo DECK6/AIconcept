@@ -87,7 +87,8 @@ class HwpTextExtractor:
     def remove_control_characters(self, s):
         return "".join(ch for ch in s if unicodedata.category(ch)[0]!="C")
 
-    def process_text(self, text        # 기존 처리
+    def process_text(self, text):
+        # 기존 처리
         processed_text = text.replace('\x02', ' ')
         processed_text = processed_text.replace('\x03', ' ')
         processed_text = processed_text.replace('\x0b', ' ')
