@@ -246,6 +246,8 @@ def generate_content(prompt):
         st.error(f"API 호출 오류: {str(e)}")
         return None
 
+import html
+
 def display_strategy_slide(title, content):
     slide_html = """
     <style>
@@ -313,36 +315,36 @@ def display_strategy_slide(title, content):
     </div>
     """
     
-    structured_content = ""
-    sections = content.split('\n\n')
-    for section in sections:
+    def process_section(section):
         if ':' in section:
             section_parts = section.split(':', 1)
-            section_title = section_parts[0].strip()
-            section_body = section_parts[1].strip()
+            section_title = html.escape(section_parts[0].strip())
+            section_body = html.escape(section_parts[1].strip())
             
             # 리스트 항목 처리
-            section_body = section_body.replace('• ', '<li>').replace('<br>', '</li><li>')
+            section_body = section_body.replace('• ', '</li><li>').replace('<br>', '</li><li>')
             if '<li>' in section_body:
-                section_body = '<ul>' + section_body + '</li></ul>'
+                section_body = '<ul><li>' + section_body + '</li></ul>'
             
             # 중요 정보 강조
-            section_body = section_body.replace('"', '<span class="highlight">"').replace('"', '"</span>')
+            section_body = section_body.replace('&quot;', '<span class="highlight">&quot;').replace('&quot;', '&quot;</span>')
             
-            structured_content += f"""
+            return f"""
             <div class="content-section">
                 <div class="section-title">{section_title}:</div>
                 <div class="section-body">{section_body}</div>
             </div>
             """
         else:
-            structured_content += f"""
+            return f"""
             <div class="content-section">
-                <div class="section-body">{section.strip()}</div>
+                <div class="section-body">{html.escape(section.strip())}</div>
             </div>
             """
 
-    formatted_slide = slide_html.format(title=title, content=structured_content)
+    structured_content = "".join(process_section(section) for section in content.split('\n\n'))
+
+    formatted_slide = slide_html.format(title=html.escape(title), content=structured_content)
     st.markdown(formatted_slide, unsafe_allow_html=True)
     
 def main():
