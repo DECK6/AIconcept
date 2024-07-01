@@ -250,54 +250,55 @@ def display_strategy_slide(title, content):
     slide_html = """
     <style>
         .slide-container {{
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            background-color: #f3f4f6;
-            padding: 2rem;
             font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
         }}
         .slide-card {{
-            width: 100%;
-            max-width: 48rem;
             background-color: white;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            border-radius: 0.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
             overflow: hidden;
         }}
         .slide-header {{
-            padding: 1.5rem;
-            border-bottom: 1px solid #e5e7eb;
             background-color: #3b82f6;
             color: white;
-        }}
-        .slide-title {{
-            font-size: 1.5rem;
-            font-weight: bold;
+            padding: 20px;
             text-align: center;
         }}
+        .slide-title {{
+            font-size: 24px;
+            font-weight: bold;
+            margin: 0;
+        }}
         .slide-content {{
-            padding: 1.5rem;
+            padding: 20px;
         }}
         .content-section {{
-            margin-bottom: 1rem;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 20px;
+        }}
+        .content-section:last-child {{
+            border-bottom: none;
         }}
         .section-title {{
-            font-size: 1.2rem;
+            font-size: 18px;
             font-weight: bold;
             color: #4b5563;
-            margin-bottom: 0.5rem;
+            margin-bottom: 10px;
         }}
         .section-body {{
-            font-size: 1rem;
-            color: #1f2937;
+            font-size: 16px;
         }}
-        @media (max-width: 640px) {{
-            .slide-card {{
-                max-width: 100%;
-            }}
+        .section-body ul {{
+            padding-left: 20px;
+        }}
+        .highlight {{
+            background-color: #fef3c7;
+            padding: 2px 4px;
+            border-radius: 4px;
         }}
     </style>
     <div class="slide-container">
@@ -312,29 +313,38 @@ def display_strategy_slide(title, content):
     </div>
     """
     
-    # content를 구조화된 HTML로 변환
     structured_content = ""
     sections = content.split('\n\n')
     for section in sections:
         if ':' in section:
             section_parts = section.split(':', 1)
             section_title = section_parts[0].strip()
-            section_body = section_parts[1].strip().replace('\n', '<br>')
-            structured_content += """
+            section_body = section_parts[1].strip()
+            
+            # 리스트 항목 처리
+            section_body = section_body.replace('• ', '<li>').replace('<br>', '</li><li>')
+            if '<li>' in section_body:
+                section_body = '<ul>' + section_body + '</li></ul>'
+            
+            # 중요 정보 강조
+            section_body = section_body.replace('"', '<span class="highlight">"').replace('"', '"</span>')
+            
+            structured_content += f"""
             <div class="content-section">
-                <div class="section-title">{0}:</div>
-                <div class="section-body">{1}</div>
+                <div class="section-title">{section_title}:</div>
+                <div class="section-body">{section_body}</div>
             </div>
-            """.format(section_title, section_body)
+            """
         else:
-            structured_content += """
+            structured_content += f"""
             <div class="content-section">
-                <div class="section-body">{0}</div>
+                <div class="section-body">{section.strip()}</div>
             </div>
-            """.format(section.strip().replace('\n', '<br>'))
+            """
 
     formatted_slide = slide_html.format(title=title, content=structured_content)
     st.markdown(formatted_slide, unsafe_allow_html=True)
+    
 def main():
     st.title("RFP 분석 및 전략 생성 도구")
 
