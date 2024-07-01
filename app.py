@@ -246,6 +246,25 @@ def generate_content(prompt):
         st.error(f"API 호출 오류: {str(e)}")
         return None
 
+def display_strategy_slide(title, content):
+    slide_html = f"""
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background-color: #f3f4f6; padding: 2rem;">
+        <div style="width: 100%; max-width: 48rem; background-color: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); border-radius: 0.5rem; overflow: hidden;">
+            <div style="padding: 1.5rem; border-bottom: 1px solid #e5e7eb;">
+                <h1 style="font-size: 1.5rem; font-weight: bold; text-align: center; color: #2563eb;">
+                    {title}
+                </h1>
+            </div>
+            <div style="padding: 1.5rem;">
+                <div style="font-size: 1rem; text-align: left;">
+                    {content.replace('\n', '<br>')}
+                </div>
+            </div>
+        </div>
+    </div>
+    """
+    st.markdown(slide_html, unsafe_allow_html=True)
+
 def main():
     st.title("RFP 분석 및 전략 생성 도구")
 
@@ -279,8 +298,6 @@ def main():
 
                 위의 사업 내용을 바탕으로 커뮤니케이션 전략을 생성해주세요. 다음 구조화된 형식을 따라 작성해주세요:
 
-                페이지 제목: 커뮤니케이션 전략
-
                 헤드라인 메시지: [전체 전략을 대표하는 핵심 메시지]
 
                 거버닝 메시지: [전략의 핵심을 요약하는 한 문장]
@@ -302,8 +319,7 @@ def main():
 
                 comm_strategy = generate_content(comm_prompt)
                 if comm_strategy:
-                    st.subheader("커뮤니케이션 전략")
-                    st.write(comm_strategy)
+                    display_strategy_slide("커뮤니케이션 전략", comm_strategy)
 
                 # 성공 전략 생성
                 success_prompt = f"""다음은 RFP의 요약 내용입니다:
@@ -311,8 +327,6 @@ def main():
                 {rfp_summary}
 
                 위의 사업 내용을 바탕으로 성공 전략을 생성해주세요. 다음 구조화된 형식을 따라 작성해주세요:
-
-                페이지 제목: 성공 전략
 
                 헤드라인 메시지: [전체 전략을 대표하는 핵심 메시지]
 
@@ -328,8 +342,7 @@ def main():
 
                 success_strategy = generate_content(success_prompt)
                 if success_strategy:
-                    st.subheader("성공 전략")
-                    st.write(success_strategy)
+                    display_strategy_slide("성공 전략", success_strategy)
 
                 # 성공 전략 상세 생성
                 detail_prompt = f"""다음은 RFP의 요약 내용입니다:
@@ -341,8 +354,6 @@ def main():
                 {success_strategy}
 
                 위의 내용을 바탕으로 각 전략에 대한 상세 내용을 작성해주세요. 다음 구조화된 형식을 따라 작성해주세요:
-
-                페이지 제목: 성공 전략 상세
 
                 헤드라인 메시지: [전체 전략을 대표하는 핵심 메시지]
 
@@ -367,8 +378,7 @@ def main():
 
                 strategy_details = generate_content(detail_prompt)
                 if strategy_details:
-                    st.subheader("성공 전략 상세")
-                    st.write(strategy_details)
+                    display_strategy_slide("성공 전략 상세", strategy_details)
 
 if __name__ == "__main__":
     main()
