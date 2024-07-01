@@ -247,7 +247,7 @@ def generate_content(prompt):
         return None
 
 def display_strategy_slide(title, content):
-    slide_html = f"""
+    slide_html = fr"""
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background-color: #f3f4f6; padding: 2rem;">
         <div style="width: 100%; max-width: 48rem; background-color: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); border-radius: 0.5rem; overflow: hidden;">
             <div style="padding: 1.5rem; border-bottom: 1px solid #e5e7eb;">
