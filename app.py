@@ -246,114 +246,37 @@ def generate_content(prompt):
         st.error(f"API 호출 오류: {str(e)}")
         return None
 
-import html
-
 def display_strategy_slide(title, content):
-    slide_html = """
-    <style>
-        .slide-container {{
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-        }}
-        .slide-card {{
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-            overflow: hidden;
-        }}
-        .slide-header {{
-            background-color: #3b82f6;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }}
-        .slide-title {{
-            font-size: 24px;
-            font-weight: bold;
-            margin: 0;
-        }}
-        .slide-content {{
-            padding: 20px;
-        }}
-        .content-section {{
-            margin-bottom: 20px;
-            border-bottom: 1px solid #e5e7eb;
-            padding-bottom: 20px;
-        }}
-        .content-section:last-child {{
-            border-bottom: none;
-        }}
-        .section-title {{
-            font-size: 18px;
-            font-weight: bold;
-            color: #4b5563;
-            margin-bottom: 10px;
-        }}
-        .section-body {{
-            font-size: 16px;
-        }}
-        .section-body ul {{
-            padding-left: 20px;
-        }}
-        .highlight {{
-            background-color: #fef3c7;
-            padding: 2px 4px;
-            border-radius: 4px;
-        }}
-    </style>
-    <div class="slide-container">
-        <div class="slide-card">
-            <div class="slide-header">
-                <h1 class="slide-title">{title}</h1>
-            </div>
-            <div class="slide-content">
-                {content}
-            </div>
-        </div>
-    </div>
-    """
+    st.header(title)
     
-    def process_section(section):
+    sections = content.split('\n\n')
+    for section in sections:
         if ':' in section:
             section_parts = section.split(':', 1)
-            section_title = html.escape(section_parts[0].strip())
-            section_body = html.escape(section_parts[1].strip())
+            section_title = section_parts[0].strip()
+            section_body = section_parts[1].strip()
+            
+            st.subheader(section_title)
             
             # 리스트 항목 처리
-            section_body = section_body.replace('• ', '</li><li>').replace('<br>', '</li><li>')
-            if '<li>' in section_body:
-                section_body = '<ul><li>' + section_body + '</li></ul>'
-            
-            # 중요 정보 강조
-            section_body = section_body.replace('&quot;', '<span class="highlight">&quot;').replace('&quot;', '&quot;</span>')
-            
-            return f"""
-            <div class="content-section">
-                <div class="section-title">{section_title}:</div>
-                <div class="section-body">{section_body}</div>
-            </div>
-            """
+            if '•' in section_body:
+                items = section_body.split('•')
+                for item in items[1:]:  # 첫 번째 항목은 빈 문자열이므로 건너뜁니다
+                    st.markdown(f"- {item.strip()}")
+            else:
+                st.write(section_body)
         else:
-            return f"""
-            <div class="content-section">
-                <div class="section-body">{html.escape(section.strip())}</div>
-            </div>
-            """
+            st.write(section)
+        
+        st.markdown("---")  # 구분선 추가
 
-    structured_content = "".join(process_section(section) for section in content.split('\n\n'))
-
-    formatted_slide = slide_html.format(title=html.escape(title), content=structured_content)
-    st.markdown(formatted_slide, unsafe_allow_html=True)
-    
 def main():
     st.title("RFP 분석 및 전략 생성 도구")
 
     uploaded_file = st.file_uploader("RFP 파일을 업로드하세요", type=["txt", "pdf", "hwp", "hwpx"])
 
     if uploaded_file is not None:
-        content = read_file(uploaded_file)
+        content = read_file(uploaded_file)  # read_file 함수는 이전과 동일합니다
         
         if content is None:
             st.error("파일 내용을 읽을 수 없습니다. 파일 형식을 확인해주세요.")
@@ -364,7 +287,7 @@ def main():
 
         if st.button("분석 시작"):
             with st.spinner("분석 중..."):
-                # RFP 요약 (생성은 하되 표시하지 않음)
+                # RFP 요약
                 summary_prompt = f"""다음은 RFP의 내용입니다:
 
                 {content[:4000]}  # API 제한으로 인해 내용을 잘랐습니다.
