@@ -317,23 +317,24 @@ def display_strategy_slide(title, content):
     sections = content.split('\n\n')
     for section in sections:
         if ':' in section:
-            section_title, section_body = section.split(':', 1)
-            structured_content += f"""
+            section_parts = section.split(':', 1)
+            section_title = section_parts[0].strip()
+            section_body = section_parts[1].strip().replace('\n', '<br>')
+            structured_content += """
             <div class="content-section">
-                <div class="section-title">{section_title.strip()}:</div>
-                <div class="section-body">{section_body.strip().replace('\n', '<br>')}</div>
+                <div class="section-title">{0}:</div>
+                <div class="section-body">{1}</div>
             </div>
-            """
+            """.format(section_title, section_body)
         else:
-            structured_content += f"""
+            structured_content += """
             <div class="content-section">
-                <div class="section-body">{section.strip().replace('\n', '<br>')}</div>
+                <div class="section-body">{0}</div>
             </div>
-            """
+            """.format(section.strip().replace('\n', '<br>'))
 
     formatted_slide = slide_html.format(title=title, content=structured_content)
     st.markdown(formatted_slide, unsafe_allow_html=True)
-
 def main():
     st.title("RFP 분석 및 전략 생성 도구")
 
