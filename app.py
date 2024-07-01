@@ -247,7 +247,7 @@ def generate_content(prompt):
         return None
 
 def display_strategy_slide(title, content):
-    slide_html = fr"""
+    slide_html = """
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background-color: #f3f4f6; padding: 2rem;">
         <div style="width: 100%; max-width: 48rem; background-color: white; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); border-radius: 0.5rem; overflow: hidden;">
             <div style="padding: 1.5rem; border-bottom: 1px solid #e5e7eb;">
@@ -257,13 +257,15 @@ def display_strategy_slide(title, content):
             </div>
             <div style="padding: 1.5rem;">
                 <div style="font-size: 1rem; text-align: left;">
-                    {content.replace('\n', '<br>')}
+                    {content}
                 </div>
             </div>
         </div>
     </div>
     """
-    st.markdown(slide_html, unsafe_allow_html=True)
+    formatted_content = content.replace('\n', '<br>')
+    formatted_slide = slide_html.format(title=title, content=formatted_content)
+    st.markdown(formatted_slide, unsafe_allow_html=True)
 
 def main():
     st.title("RFP 분석 및 전략 생성 도구")
