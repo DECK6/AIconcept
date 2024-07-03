@@ -374,7 +374,44 @@ def main():
                 if success_strategy:
                     display_strategy_slide("성공 전략", success_strategy)
 
-                # 성공 전략 상세 생성 부분은 이전과 동일하게 유지
+                # 성공 전략 상세 생성
+                detail_prompt = f"""다음은 RFP의 요약 내용, 기획자의 아이디어, 그리고 앞서 생성한 성공 전략입니다:
+
+                RFP 요약:
+                {rfp_summary}
+
+                기획자 아이디어:
+                {planner_idea}
+
+                성공 전략:
+                {success_strategy}
+
+                위의 내용을 바탕으로 각 전략에 대한 상세 내용을 작성해주세요. 다음 구조화된 형식을 따라 작성해주세요:
+
+                헤드라인 메시지: [전체 전략을 대표하는 핵심 메시지]
+
+                거버닝 메시지: [전략의 핵심을 요약하는 한 문장]
+
+                본문:
+                • [첫 번째 전략 단어]:
+                  - [헤드라인 메시지]
+                  - [중요성 설명]
+                  - [구체적인 실행 방안]
+                  - [기대 효과]
+
+                • [두 번째 전략 단어]:
+                  - [헤드라인 메시지]
+                  - [중요성 설명]
+                  - [구체적인 실행 방안]
+                  - [기대 효과]
+
+                [나머지 전략 단어들에 대해서도 같은 형식으로 작성]
+
+                각 전략에 대한 설명과 실행 방안은 매우 구체적이고 상세해야 합니다. 실제 수행 방법, 단계, 필요한 자원 등을 자세히 기술해주세요."""
+
+                strategy_details = generate_content(detail_prompt)
+                if strategy_details:
+                    display_strategy_slide("성공 전략 상세", strategy_details)
 
 if __name__ == "__main__":
     main()
